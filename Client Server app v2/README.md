@@ -10,5 +10,5 @@ List of all available commands:
             "msg - allows to send a message",
             "read - allows to read your mailbox",
             "delete(admin only) - deletes user",
-            "show_u(admin only) - shows all users",
-            "show_m(admin only) - shows all messages"
+            "show_all_u(admin only) - shows all users",
+            "show_all_m(admin only) - shows all messages"
