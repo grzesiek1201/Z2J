@@ -7,7 +7,7 @@ class TestOptions(unittest.TestCase):
 
     def test_uptime_command(self):
         options = Options()
-        uptime_response = options.uptime()  # Wywołanie funkcji uptime
+        uptime_response = options.uptime() 
         print("Uptime response:", uptime_response)
 
         info_response = options.info("Server Info")
@@ -16,7 +16,6 @@ class TestOptions(unittest.TestCase):
         help_response = options.help()
         print("Help response:", help_response)
 
-        # Sprawdzenie czy otrzymany JSON zawiera klucz 'uptime'
         self.assertIn("uptime", uptime_response)
         self.assertIn("info", info_response)
         self.assertIn("help", help_response)
