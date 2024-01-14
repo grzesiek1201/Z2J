@@ -1,9 +1,9 @@
 import socket
 import json
-
+from sql_table import DbBase
 
 class Server:
-    def __init__(self, host, port, server_info, options, mailbox):
+    def __init__(self, host, port, server_info, options, mailbox,db):
         self.host = host
         self.port = port
         self.server_info = server_info
@@ -11,6 +11,7 @@ class Server:
         self.mailbox = mailbox
         self.max_messages = 5
         self.max_message_length = 255
+        self.db = db
 
     def start(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
