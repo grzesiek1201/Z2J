@@ -1,13 +1,14 @@
 import socket
 import json
-
+from sql_table import DbBase
 
 class Client:
     def __init__(self):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.s.connect(("127.0.0.1", 5432))
+        self.s.connect(("localhost", 50221))
         self.logged_in = False
         self.logged_in_client = None
+        self.db_instance = DbBase()
 
     def send_response(self, message):
         self.s.sendall(message.encode("utf-8"))
@@ -64,6 +65,7 @@ class Client:
 
 if __name__ == "__main__":
     client = Client()
+
 
     command_options = {
         "help": client.get_help,
