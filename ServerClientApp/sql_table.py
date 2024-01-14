@@ -3,70 +3,80 @@ from psycopg2 import Error
 
 class DbBase:
     def __init__(self):
-        self.DB_HOST = "127.0.0.1"
-        self.DB_DATABASE = "UsersBase"
-        self.DB_USER = "franek"
-        self.DB_PASSWORD = "kimono"
-        self.DB_PORT = 5432
-        self.connection = psycopg2.connect(
-            host=self.DB_HOST,
-            user=self.DB_USER,
-            password=self.DB_PASSWORD,
-            dbname=self.DB_DATABASE,
-            port=self.DB_PORT,
-            sslmode = 'disable'
-        )
+        self.connection = None
+        self.connected = False
 
     def __enter__(self):
-        self.connection = psycopg2.connect(
-            host=self.DB_HOST,
-            user=self.DB_USER,
-            password=self.DB_PASSWORD,
-            dbname=self.DB_DATABASE,
-            port=self.DB_PORT,
-            sslmode='disable'
-        )
-        return self
+        self.DB_HOST = "localhost"
+        self.DB_DATABASE = "postgres"
+        self.DB_USER = "postgres"
+        self.DB_PASSWORD = "postgres"
+        self.DB_PORT = 5433
+
+        if not self.connected or (self.connection and self.connection.closed):
+            try:
+                self.connection = psycopg2.connect(
+                    host=self.DB_HOST,
+                    user=self.DB_USER,
+                    password=self.DB_PASSWORD,
+                    dbname=self.DB_DATABASE,
+                    port=self.DB_PORT,
+                    sslmode='disable'
+                )
+                self.connection.autocommit = True
+                self.connected = True
+                print("Connected to PostgreSQL")
+            except (Exception, Error) as error:
+                print("Error while connecting to PostgreSQL:", error)
+
+        return self.connection
 
     def __exit__(self, exc_type, exc_value, traceback):
-        if self.connection:
+        if self.connected and self.connection:
+            print("Before closing PostgreSQL connection:", self.connection)
             self.connection.close()
+            self.connected = False
             print("PostgreSQL connection is closed")
+
+    def execute_sql(self, sql, params=None):
+        try:
+            with self.connection.cursor() as cursor:
+                cursor.execute(sql, params)
+                self.connection.commit()
+        except (Exception, Error) as error:
+            print(f"Error executing SQL query: {error}")
 
     def db_server_start(self):
         try:
             connection = self.connection
+            if not connection or connection.closed:
+                raise Exception("Connection not established or closed.")
+
             print("Connected to UsersBase - DB")
 
-            cursor = connection.cursor()
-
+            print("Before executing SQL queries:", connection)
             create_table_users_base = '''
-                CREATE TABLE UsersBase (
+                CREATE TABLE IF NOT EXISTS UsersBase (
                     username VARCHAR(255) NOT NULL UNIQUE,
                     password VARCHAR(255) NOT NULL,
                     role VARCHAR(255) NOT NULL DEFAULT 'USER'
                 );
             '''
-            cursor.execute(create_table_users_base)
-            connection.commit()
+            self.execute_sql(create_table_users_base)
 
             create_table_users_messages = '''
-                CREATE TABLE UsersMessages (
+                CREATE TABLE IF NOT EXISTS UsersMessages (
                     sender VARCHAR(255) NOT NULL,
                     recipient VARCHAR(255) NOT NULL,
                     message VARCHAR(255) NOT NULL
                 );
             '''
-            cursor.execute(create_table_users_messages)
-            connection.commit()
+            self.execute_sql(create_table_users_messages)
+
+            print("After executing SQL queries:", connection)
 
         except (Exception, Error) as error:
-            print("Error while connecting to PostgreSQL", error)
-        finally:
-            if connection:
-                cursor.close()
-                connection.close()
-                print("PostgreSQL connection is closed")
+            print("Error while connecting to PostgreSQL:", error)
 
     def register_user(self, username, password):
         connection = self.connection
