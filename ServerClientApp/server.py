@@ -2,8 +2,9 @@ import socket
 import json
 from sql_table import DbBase
 
+
 class Server:
-    def __init__(self, host, port, server_info, options, mailbox,db):
+    def __init__(self, host, port, server_info, options, mailbox, db):
         self.host = host
         self.port = port
         self.server_info = server_info
