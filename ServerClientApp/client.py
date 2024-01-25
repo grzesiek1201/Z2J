@@ -5,7 +5,7 @@ from sql_table import DbBase
 class Client:
     def __init__(self):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.s.connect(("localhost", 50221))
+        self.s.connect(("localhost", 5022))
         self.logged_in = False
         self.logged_in_client = None
         self.db_instance = DbBase()
