@@ -22,7 +22,7 @@ class Options:
             "stop - stopping server and client",
             "register - allows to register new user",
             "login - allows to login",
-            "msg - allows to send a message",
+            "send - allows to send a message",
             "read - allows to read your mailbox",
             "delete(admin only) - deletes user",
             "show_all_u(admin only) - shows all users",
