@@ -5,13 +5,16 @@ from sql_table import DbBase
 import psycopg2
 from psycopg2 import Error
 
+
 class MAIN:
     HOST = "localhost"
-    PORT = 50221
+    PORT = 5022
     INFO = "version: 0.7."
+
 
 if __name__ == "__main__":
     options_instance = Options(MAIN.INFO)
+
     db = DbBase()
     db.db_server_start()
 
