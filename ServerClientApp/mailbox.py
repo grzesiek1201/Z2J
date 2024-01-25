@@ -22,7 +22,7 @@ class Mailbox:
     def read_messages_to(self, reader):
         try:
             with self.db as db:
-                messages = db.read_messages_to(reader)
+                messages = db.read_messages(reader)
             return messages
         except Exception as e:
             return f"Error reading messages: {str(e)}"
