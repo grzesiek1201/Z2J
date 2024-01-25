@@ -39,7 +39,6 @@ class DbBase:
         try:
             if self.connected and self.connection:
                 print("Before closing PostgreSQL connection:", self.connection)
-                # ... additional cleanup if needed ...
         finally:
             if self.connection is not None:
                 self.connection.close()
