@@ -5,6 +5,7 @@ import threading
 import time
 import random
 
+
 class ConnectionPool:
     def __init__(self, max_connections=100):
         self.max_connections = max_connections
@@ -36,6 +37,7 @@ class ConnectionPool:
             return connection
         except (Exception, Error) as e:
             print("Error creating connection:", e)
+            pass
             return None
 
     def execute_simple_select(self, connection):
@@ -69,8 +71,9 @@ class ConnectionPool:
         if connection:
             with self.connection_lock:
                 self.connection_pool.put(connection)
-            self.semaphore.release()
-
+                if self.connection_pool.full():
+                    self.semaphore.release()
+                    
     def check_conn(self):
         while self.running:
             time.sleep(2)
@@ -79,7 +82,8 @@ class ConnectionPool:
                     f"Current connections: {self.current_connections}\nReleased connections: {self.max_connections - self.connection_pool.qsize()}\nQueue size: {self.connection_pool.qsize()}\n")
 
     def add_random_connections(self):
-        while self.running:
+        start_time = time.time()
+        while self.running and time.time() - start_time < 300:
             time.sleep(2)
             random_connections = random.randint(10, 30)
             for _ in range(random_connections):
@@ -87,16 +91,18 @@ class ConnectionPool:
 
     def cleanup_connections(self):
         while self.running:
-            time.sleep(10)
+            time.sleep(5)
             with self.connection_lock:
-                connections_to_keep = max(self.connection_pool.qsize(), 10)
-                while self.connection_pool.qsize() > connections_to_keep:
+                min_connections = 10 
+                connections_to_release = max(self.current_connections - min_connections, 0)
+                for _ in range(connections_to_release):
                     connection = self.connection_pool.get()
                     connection.close()
                     self.current_connections -= 1
 
     def stop(self):
         self.running = False
+
 
 if __name__ == "__main__":
     pool = ConnectionPool(max_connections=100)
@@ -110,10 +116,7 @@ if __name__ == "__main__":
     cleanup_connections_thread = threading.Thread(target=pool.cleanup_connections)
     cleanup_connections_thread.start()
 
-    try:
-        time.sleep(6000)
-    finally:
-        pool.stop()
-        check_conn_thread.join()
-        add_random_connections_thread.join()
-        cleanup_connections_thread.join()
+    check_conn_thread.join()
+    add_random_connections_thread.join()
+    cleanup_connections_thread.join()
+    
