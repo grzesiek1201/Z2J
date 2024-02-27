@@ -3,21 +3,20 @@ from psycopg2 import Error
 import queue
 import threading
 import time
-import random
 
 
 class ConnectionPool:
     def __init__(self, max_connections=100):
         self.max_connections = max_connections
-        self.connection_pool = queue.Queue(maxsize=max_connections)
         self.connection_lock = threading.Lock()
         self.current_connections = 0
+        self.released_connections = 0
         self.initialize_connections()
-        self.semaphore = threading.Semaphore(max_connections)
-        self.running = True
+
 
     def initialize_connections(self):
-        for _ in range(10):
+        self.connection_pool = queue.Queue(maxsize=self.max_connections)
+        for _ in range(self.max_connections):
             connection = self.create_connection()
             if connection:
                 self.connection_pool.put(connection)
@@ -33,90 +32,71 @@ class ConnectionPool:
                 port=5433,
                 client_encoding="utf-8"
             )
-            self.execute_simple_select(connection)
             return connection
         except (Exception, Error) as e:
             print("Error creating connection:", e)
-            pass
             return None
-
-    def execute_simple_select(self, connection):
-        try:
-            cursor = connection.cursor()
-            cursor.execute("SELECT 1")
-            cursor.close()
-        except Exception as e:
-            print("Error executing select:", e)
 
     def get_connection(self):
-        try:
-            with self.connection_lock:
-                if self.connection_pool.empty() and self.current_connections < self.max_connections:
-                    self.add_connection()
-            self.semaphore.acquire()
-            connection = self.connection_pool.get(timeout=5)
-            return connection
-        except queue.Empty:
-            print("No available connections in the pool. Retrying...")
-            return None
+        while True:
+            try:
+                with self.connection_lock:
+                    if self.connection_pool.empty():
+                        self.add_connection()
+                    elif self.current_connections >= self.max_connections:
+                        print("Connection limit reached. Unable to acquire connection.")
+                        return None
+                connection = self.connection_pool.get(timeout=1)
+                return connection
+            except queue.Empty:
+                print("No available connections in the pool. Retrying...")
+                continue
 
     def add_connection(self):
         connection = self.create_connection()
         if connection:
             with self.connection_lock:
                 self.connection_pool.put(connection)
-                self.current_connections += 1
 
     def release_connection(self, connection):
         if connection:
             with self.connection_lock:
                 self.connection_pool.put(connection)
-                if self.connection_pool.full():
-                    self.semaphore.release()
-                    
-    def check_conn(self):
-        while self.running:
-            time.sleep(2)
-            with self.connection_lock:
-                print(
-                    f"Current connections: {self.current_connections}\nReleased connections: {self.max_connections - self.connection_pool.qsize()}\nQueue size: {self.connection_pool.qsize()}\n")
+                self.released_connections += 1
 
-    def add_random_connections(self):
-        start_time = time.time()
-        while self.running and time.time() - start_time < 300:
-            time.sleep(2)
-            random_connections = random.randint(10, 30)
-            for _ in range(random_connections):
-                self.add_connection()
-
-    def cleanup_connections(self):
-        while self.running:
-            time.sleep(5)
-            with self.connection_lock:
-                min_connections = 10 
-                connections_to_release = max(self.current_connections - min_connections, 0)
-                for _ in range(connections_to_release):
-                    connection = self.connection_pool.get()
-                    connection.close()
-                    self.current_connections -= 1
+    def remove_inactive_connections(self):
+        with self.connection_lock:
+            removed_count = 0
+            while self.connection_pool.qsize() > 10:
+                connection = self.connection_pool.get_nowait()
+                connection.close()
+                removed_count += 1
+            self.released_connections += removed_count
 
     def stop(self):
-        self.running = False
+        with self.connection_lock:
+            while not self.connection_pool.empty():
+                connection = self.connection_pool.get()
+                connection.close()
+                self.current_connections -= 1
+            self.current_connections = 0
+
+    def print_connection_status(self):
+        with self.connection_lock:
+            active_connections = self.max_connections - self.connection_pool.qsize()
+            queue_size = self.connection_pool.qsize()
+            released_connections = self.released_connections
+            print(
+                f"Connections in queue: {queue_size}. Active connections: {active_connections}. Released connections: {released_connections}.")
+
+    def destroy_error_connections(self):
+        with self.connection_lock:
+            while not self.connection_pool.empty():
+                connection = self.connection_pool.get_nowait()
+                connection.close()
+                self.current_connections -= 1
+            print("Destroyed connections with errors.")
 
 
 if __name__ == "__main__":
     pool = ConnectionPool(max_connections=100)
-
-    check_conn_thread = threading.Thread(target=pool.check_conn)
-    check_conn_thread.start()
-
-    add_random_connections_thread = threading.Thread(target=pool.add_random_connections)
-    add_random_connections_thread.start()
-
-    cleanup_connections_thread = threading.Thread(target=pool.cleanup_connections)
-    cleanup_connections_thread.start()
-
-    check_conn_thread.join()
-    add_random_connections_thread.join()
-    cleanup_connections_thread.join()
-    
