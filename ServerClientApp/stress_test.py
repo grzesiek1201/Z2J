@@ -6,7 +6,7 @@ from connection_pool import ConnectionPool
 
 class TestConnectionPool(unittest.TestCase):
     def setUp(self):
-        self.pool = ConnectionPool(max_connections=200)
+        self.pool = ConnectionPool(max_connections=100)
         self.stop_threads = False
 
     def test_connection_operations(self):
