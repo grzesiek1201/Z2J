@@ -83,7 +83,6 @@ class ConnectionPool:
                     removed_count += 1
                     self.current_connections -= 1
                 except queue.Empty:
-                    # Queue is empty, no more connections to remove
                     break
             self.released_connections += removed_count
 
